@@ -1,24 +1,22 @@
 #!/usr/bin/env python
-import json, requests, xml.etree.ElementTree as ET
+import json, requests
 
-INDEX = "https://orlyvlot.nl/post-sitemap.xml"
-HEAD  = {"User-Agent": "Mozilla/5.0 (compatible; PostFeedBot/1.0)"}
+API = "https://orlyvlot.nl/wp-json/wp/v2/posts"
+PER_PAGE = 100        # WP max = 100
 
-def locs(xml_text: str) -> list[str]:
-    root = ET.fromstring(xml_text)
-    return [loc.text.strip() for loc in root.iter("{*}loc")]
-
-def fetch(url: str) -> str:
-    return requests.get(url, headers=HEAD, timeout=30).text
-
-def all_posts(index_url=INDEX) -> list[str]:
-    posts = []
-    for sm_url in locs(fetch(index_url)):          # eerste laag (sub-sitemaps)
-        if not sm_url.endswith(".xml"):
-            continue                               # veiligheidscheck
-        for url in locs(fetch(sm_url)):            # tweede laag (post-URL’s)
-            if not url.endswith(".xml"):
-                posts.append(url)
-    return posts
+def all_posts(api=API):
+    page = 1
+    urls = []
+    while True:
+        r = requests.get(api, params={"per_page": PER_PAGE, "page": page}, timeout=30)
+        if r.status_code == 400:            # geen pagina meer
+            break
+        r.raise_for_status()
+        data = r.json()
+        if not data:
+            break
+        urls.extend([p["link"] for p in data])
+        page += 1
+    return urls
 
 json.dump({"urls": all_posts()}, open("posts.json", "w"), indent=2)
