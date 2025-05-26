@@ -2,20 +2,15 @@
 import json, requests
 
 API = "https://orlyvlot.nl/wp-json/wp/v2/posts"
-PER_PAGE = 100        # WP max = 100
+PER_PAGE = 100
 
 def all_posts(api=API):
-    page = 1
-    urls = []
+    page, urls = 1, []
     while True:
         r = requests.get(api, params={"per_page": PER_PAGE, "page": page}, timeout=30)
-        if r.status_code == 400:            # geen pagina meer
+        if r.status_code == 400 or not r.json():
             break
-        r.raise_for_status()
-        data = r.json()
-        if not data:
-            break
-        urls.extend([p["link"] for p in data])
+        urls.extend(p["link"] for p in r.json())
         page += 1
     return urls
 
